@@ -1,0 +1,53 @@
+# Builds a multi-arch image, signs it, pins its digest in otinstaller.yaml and tags the release.
+# Run it from the Actions tab with the version to release. The OTInstaller GitHub App publishes the tag; without the
+# App, trust this repository (`ot namespace trust <namespace> github:<owner>/<repo>`) and set the repository variable
+# OTINSTALLER_PUBLISH to oidc, and the last step publishes the release itself.
+name: otinstaller release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (e.g. 1.2.0)
+        required: true
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: sigstore/cosign-installer@v3
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ghcr.io/${{ github.repository }}:${{ inputs.version }}
+      - name: Sign
+        run: cosign sign --yes "ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
+      - name: Pin digest and tag
+        env:
+          VERSION: ${{ inputs.version }}
+          IMAGE: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+        run: |
+          IMAGE=$(echo "$IMAGE" | tr '[:upper:]' '[:lower:]')
+          sed -i -E "s|^version: .*|version: ${VERSION}|; s|^  image: .*|  image: ${IMAGE}|" otinstaller.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release ${VERSION}"
+          git tag "v${VERSION}"
+          git push origin HEAD "v${VERSION}"
+      - name: Publish to OTInstaller
+        if: vars.OTINSTALLER_PUBLISH == 'oidc'
+        run: |
+          curl -fsSL https://get.otinstaller.com/ot | OT_INSTALL_DIR="$RUNNER_TEMP" sh
+          "$RUNNER_TEMP/ot" publish --oidc

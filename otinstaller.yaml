@@ -1,0 +1,56 @@
+# OTInstaller manifest. Reference: https://otinstaller.com/docs/manifest
+# yaml-language-server: $schema=https://otinstaller.com/schema/v1.json
+schema: 1
+name: hackertarget
+namespace: osintverse-community
+version: 0.1.0
+summary: "Finds a domain's subdomains and DNS records, or an IP's reverse DNS, network and hosted domains, via HackerTarget"
+readme: README.md
+license: MIT
+homepage: https://github.com/osintverse-community/hackertarget
+categories: [domain-dns, ip-network]
+tags: [hackertarget, subdomains, reverse-ip, dns, asn, passive]
+inputs:
+  - name: domain
+    type: domain
+    required: false
+    description: "Domain: its subdomains and DNS records (give exactly one of domain or ip)"
+    example: "example.com"
+  - name: ip
+    type: ip
+    required: false
+    description: "IP address: its reverse DNS, network and the domains hosted on it (give exactly one of domain or ip)"
+    example: "8.8.8.8"
+outputs:
+  - type: subdomain
+  - type: dns_record
+  - type: ip
+  - type: domain
+    description: "Name servers and mail servers of a domain; an address's reverse DNS name and the domains hosted on it"
+  - type: organization
+    description: "The network that announces an address"
+secrets:
+  - name: HACKERTARGET_API_KEY
+    required: false
+    description: "Your HackerTarget membership API key; optional, it lifts the free API's daily allowance of about 20 to 50 calls"
+    url: https://hackertarget.com/pricing/
+    pricing: paid
+runtime:
+  kind: docker
+  # Filled in by the release workflow with the pushed image's digest.
+  image: ghcr.io/osintverse-community/hackertarget@sha256:0000000000000000000000000000000000000000000000000000000000000000
+  platforms: [linux/amd64, linux/arm64]
+  command: ["hackertarget", "--domain", "{domain}", "--ip", "{ip}"]
+  output_format: json
+  timeout_seconds: 120
+  typical_seconds: 4
+network:
+  egress: true
+  domains: ["api.hackertarget.com"]
+ethics:
+  touches_target: false
+  auth_required: false
+  collects_personal_data: false
+  notifies_target: false
+test:
+  input: { domain: "otinstaller.com" }
