@@ -38,7 +38,7 @@ secrets:
 runtime:
   kind: docker
   # Filled in by the release workflow with the pushed image's digest.
-  image: ghcr.io/osintverse-community/hackertarget@sha256:0000000000000000000000000000000000000000000000000000000000000000
+  image: ghcr.io/osintverse-community/hackertarget@sha256:e7ad1c832fa32dc51e6d480e151167f320f57274788ce6415a366d346dab34cd
   platforms: [linux/amd64, linux/arm64]
   command: ["hackertarget", "--domain", "{domain}", "--ip", "{ip}"]
   output_format: json
